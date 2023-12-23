@@ -449,6 +449,7 @@ class HTTPDevice(PowerDevice):
         self.user = config.load_template("user", default_user).render()
         self.password = config.load_template(
             "password", default_password).render()
+        self.auth_mode = config.load_template("auth_mode", "basic")
         self.protocol = config.get("protocol", default_protocol)
 
     async def init_state(self) -> None:
@@ -488,7 +489,8 @@ class HTTPDevice(PowerDevice):
     ) -> Dict[str, Any]:
         response = await self.client.get(
             url, request_timeout=20., attempts=retries,
-            retry_pause_time=1., enable_cache=False)
+            retry_pause_time=1., enable_cache=False, 
+            auth_username=self.user, auth_password=self.password, auth_mode=self.auth_mode)
         response.raise_for_status(
             f"Error sending '{self.type}' command: {command}")
         data = cast(dict, response.json())
@@ -1016,7 +1018,7 @@ class Shelly(HTTPDevice):
                 query_args["timer"] = self.timer
         elif command != "info":
             raise self.server.error(f"Invalid shelly command: {command}")
-        if self.password != "":
+        if self.password != "" and self.auth_mode == "basic":
             out_pwd = f"{quote(self.user)}:{quote(self.password)}@"
         else:
             out_pwd = ""
